@@ -1,2 +1,3 @@
 # JavaFinalAssignment
-Hi fdalkfjdafdslfadsjfldask
+Hi
+Bye
