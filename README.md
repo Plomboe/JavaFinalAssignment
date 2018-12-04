@@ -1,3 +1,1 @@
 # JavaFinalAssignment
-Hi
-Bye
