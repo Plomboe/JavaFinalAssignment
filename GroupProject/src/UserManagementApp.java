@@ -1,10 +1,6 @@
 import javafx.event.ActionEvent;
 import java.sql.*;
 import java.util.ArrayList;
-import java.util.Vector;
-
-import javax.swing.JOptionPane;
-
 import javafx.application.Application;
 import javafx.collections.FXCollections;
 import javafx.event.EventHandler;
@@ -15,7 +11,6 @@ import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.input.MouseEvent;
-import javafx.scene.layout.Border;
 import javafx.scene.layout.GridPane;
 import javafx.scene.text.Font;
 import javafx.stage.Stage;
@@ -24,6 +19,11 @@ public class UserManagementApp extends Application {
 	
 	// Connection
 	static Connection connection;
+	
+	final String DATABASE_URL = "jdbc:oracle:thin:@199.212.26.208:1521:SQLD";
+	//final String DATABASE_URL = "jdbc:oracle:thin:@oracle1.centennialcollege.ca:1521:SQLD"; //From School
+	final String USERNAME = "comp228sy_F18_3";
+	final String PASSWORD = "password";
 	
 	// Title label
 	private Label lApplicationTitle;
@@ -65,29 +65,11 @@ public class UserManagementApp extends Application {
     	pane.setVgap(5.5);
     	
     	// Get the customers from server
-    	connection = DriverManager.getConnection("jdbc:oracle:thin:@oracle1.centennialcollege.ca:1521:SQLD", "comp228sy_F18_3", "password");
-    	Statement statement = connection.createStatement();
-        ResultSet resultSet = statement.executeQuery("SELECT * FROM CUSTOMERS JOIN ADDRESS USING(ADDRESSID)");
-        Customers = new ArrayList<Customer>();
-        while (resultSet.next())
-        {
-        	Customer DBCustomer = new Customer();
-		  
-        	// Fill the data
-        	DBCustomer.setId( Integer.valueOf(resultSet.getString("CUSTOMERID")));
-        	DBCustomer.setAddressId( Integer.valueOf(resultSet.getString("ADDRESSID")));
-        	DBCustomer.setFirstName(resultSet.getString("FIRSTNAME"));
-        	DBCustomer.setLastName(resultSet.getString("LASTNAME"));
-	      	DBCustomer.setEmail(resultSet.getString("EMAIL"));
-	      	DBCustomer.setPhone(resultSet.getString("PHONE"));
-	      	DBCustomer.setStreet(resultSet.getString("STREET"));
-	      	DBCustomer.setCity(resultSet.getString("CITY"));
-	      	DBCustomer.setProvince(resultSet.getString("PROVINCE"));
-	      	DBCustomer.setPostalCode(resultSet.getString("POSTALCODE"));
-      	  
-	      	Customers.add(DBCustomer);
-        }
+    	connection = DriverManager.getConnection(DATABASE_URL,USERNAME,PASSWORD);
     	
+    	populateCustomersArrayList(connection);
+        
+        connection.close();
     	// Create the title label
     	lApplicationTitle = new Label("User management Application");
     	lApplicationTitle.setFont(new Font("Arial", 30));
@@ -139,7 +121,7 @@ public class UserManagementApp extends Application {
     	licPostalCode = new LabelInputComponent("Postal Code");
     	licPostalCode.CreateComponent(gUserManagemenFormGrid, 6);
     	
-    	licEmail = new LabelInputComponent("EMail");
+    	licEmail = new LabelInputComponent("Email");
     	licEmail.CreateComponent(gUserManagemenFormGrid, 7);
     	
     	licPhoneNumber = new LabelInputComponent("Phone Number");
@@ -158,6 +140,8 @@ public class UserManagementApp extends Application {
     	bUpdateUser = new Button("Update User");
     	bUpdateUser.setOnAction(new ManipulateUserInfoClass());
     	gButtonPanel.add(bUpdateUser, 1, 0);
+    	
+    	
     	
     	bDeleteUser = new Button("Delete User");
     	bDeleteUser.setOnAction(new ManipulateUserInfoClass());
@@ -181,7 +165,56 @@ public class UserManagementApp extends Application {
     	primaryStage.setScene(scene);
     	primaryStage.show();
 	}
-	
+	public void populateCustomersArrayList(Connection aconnection)
+	{
+		try {
+			Statement statement = aconnection.createStatement();
+			ResultSet resultSet = statement.executeQuery("SELECT * FROM CUSTOMERS JOIN ADDRESS USING(ADDRESSID)");
+			Customers = new ArrayList<Customer>();
+			while (resultSet.next())
+			{
+				Customer DBCustomer = new Customer();
+			  
+				// Fill the data
+				DBCustomer.setId( Integer.valueOf(resultSet.getString("CUSTOMERID")));
+				DBCustomer.setAddressId( Integer.valueOf(resultSet.getString("ADDRESSID")));
+				DBCustomer.setFirstName(resultSet.getString("FIRSTNAME"));
+				DBCustomer.setLastName(resultSet.getString("LASTNAME"));
+			  	DBCustomer.setEmail(resultSet.getString("EMAIL"));
+			  	DBCustomer.setPhone(resultSet.getString("PHONE"));
+			  	DBCustomer.setStreet(resultSet.getString("STREET"));
+			  	DBCustomer.setCity(resultSet.getString("CITY"));
+			  	DBCustomer.setProvince(resultSet.getString("PROVINCE"));
+			  	DBCustomer.setPostalCode(resultSet.getString("POSTALCODE"));
+			  
+			  	Customers.add(DBCustomer);
+			}
+		} catch (NumberFormatException e) {
+			e.printStackTrace();
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+	}
+	public void close()
+	{
+		try
+		{
+			connection.close();
+		}
+		catch (SQLException sqlException)
+		{
+			sqlException.printStackTrace();
+		}
+	}
+	// Alert Method for input validation
+	public void showAlert(String message, String title)
+	{
+		Alert alert = new Alert(AlertType.ERROR);
+		alert.setTitle(title);
+		alert.setHeaderText(null);
+		alert.setContentText(message);
+		alert.showAndWait();
+	}
 	class GetInfoFromList implements EventHandler<MouseEvent>
 	{		
 		@Override
@@ -210,7 +243,9 @@ public class UserManagementApp extends Application {
 		public void CreateUser()
 		{
 			Customer NewCustomer = new Customer();
+			
 			try {
+				connection = DriverManager.getConnection(DATABASE_URL,USERNAME,PASSWORD);
 				
 				NewCustomer.setFirstName(licFirstName.GetValue());
 				NewCustomer.setLastName(licLastName.GetValue());
@@ -221,56 +256,102 @@ public class UserManagementApp extends Application {
 				NewCustomer.setProvince(licProvince.GetValue());
 				NewCustomer.setPostalCode(licPostalCode.GetValue());
 				
-				connection = DriverManager.getConnection("jdbc:oracle:thin:@oracle1.centennialcollege.ca:1521:SQLD", "comp228sy_F18_3", "password");
-				Statement statement = connection.createStatement();
-				final String INSERT_ADDRESS_QUERY = "INSERT INTO Address VALUES (Address_Id_Seq.NextVal,'" + NewCustomer.getStreet() + "','" + NewCustomer.getCity() + "','" + NewCustomer.getProvince() + "','" + NewCustomer.getPostalCode() + "')";
-				final String INSERT_CUSTOMER_QUERY = "INSERT INTO CUSTOMERS VALUES (Customers_Id_Seq.NextVal,'" + NewCustomer.getLastName() + "','" + NewCustomer.getFirstName() + "', Address_Id_Seq.Currval,'" + NewCustomer.getEmail() + "','" + NewCustomer.getPhone() + "')";
-				ResultSet resultAddress = statement.executeQuery(INSERT_ADDRESS_QUERY);
-				ResultSet resultCustomer = statement.executeQuery(INSERT_CUSTOMER_QUERY);
-				
-				Customers.add(NewCustomer);
-				lUserList.setItems(FXCollections.observableArrayList(Customers));
+				//If empty or has numbers inside
+				if("".equals(NewCustomer.getFirstName()) || !NewCustomer.getFirstName().matches("[a-zA-Z]+$"))
+				{
+					showAlert("Please Enter Valid First Name", "First Name Can Not Be Empty");
+				}
+				else if("".equals(NewCustomer.getLastName()) || !NewCustomer.getLastName().matches("[a-zA-Z]+$"))
+				{
+					showAlert("Please Enter Last Name", "Last Name Can Not Be Empty");
+				}
+				else if("".equals(NewCustomer.getEmail()) || !NewCustomer.getEmail().matches("^[\\w-\\.]+@([\\w-]+\\.)+[\\w-]{2,4}$"))
+				{
+					showAlert("Please Enter Valid Email", "Email Can Not Be Empty");
+				}
+				else{
+					Statement statement = connection.createStatement();
+					final String SELECT_BY_EMAIL = "SELECT * FROM CUSTOMERS WHERE EMAIL = '" + NewCustomer.getEmail()  + "'";
+					ResultSet resultsSelectByEmail = statement.executeQuery(SELECT_BY_EMAIL);
+					if(resultsSelectByEmail.next())
+					{
+						showAlert("Please enter a different email", "Email Already Exists");
+					}
+					else
+					{
+						final String INSERT_ADDRESS_QUERY = "INSERT INTO Address VALUES (Address_Id_Seq.NextVal,'" + NewCustomer.getStreet() + "','" + NewCustomer.getCity() + "','" + NewCustomer.getProvince() + "','" + NewCustomer.getPostalCode() + "')";
+						final String INSERT_CUSTOMER_QUERY = "INSERT INTO CUSTOMERS VALUES (Customers_Id_Seq.NextVal,'" + NewCustomer.getLastName() + "','" + NewCustomer.getFirstName() + "', Address_Id_Seq.Currval,'" + NewCustomer.getEmail() + "','" + NewCustomer.getPhone() + "')";
+						statement.executeQuery(INSERT_ADDRESS_QUERY);
+						statement.executeQuery(INSERT_CUSTOMER_QUERY);
+						populateCustomersArrayList(connection);
+						lUserList.setItems(FXCollections.observableArrayList(Customers));
+					}
+				}
 			} catch (SQLException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
-			
-			
-			
+			finally{
+				close();
+			}
 		}
 		
 		public void UpdateUser()
 		{
 			try {
 				// Get the user we selected
+				
 				Customer Selection = lUserList.getSelectionModel().getSelectedItem();
 				
-				int Index = Customers.indexOf(Selection);
-				Selection = Customers.get(Index);			
-				
-				Selection.setFirstName(licFirstName.GetValue());
-				Selection.setLastName(licLastName.GetValue());
-				Selection.setEmail(licEmail.GetValue());
-				Selection.setPhone(licPhoneNumber.GetValue());
-				Selection.setStreet(licHomeAddress.GetValue());
-				Selection.setCity(licCity.GetValue());
-				Selection.setProvince(licProvince.GetValue());
-				Selection.setPostalCode(licPostalCode.GetValue());
-				
-				connection = DriverManager.getConnection("jdbc:oracle:thin:@oracle1.centennialcollege.ca:1521:SQLD", "comp228sy_F18_3", "password");
-				Statement statement = connection.createStatement();
-				final String UPDATE_CUSTUMER = "UPDATE CUSTOMERS SET LastName = '" + Selection.getLastName() + "',FirstName = '" + Selection.getFirstName() + "',Email = '" + Selection.getEmail() + "',Phone = '" + Selection.getPhone() + "' WHERE Customerid =" + Selection.getId();
-				final String UPDATE_ADDRESS = "UPDATE ADDRESS SET Street = '" + Selection.getStreet() + "',City = '" + Selection.getCity() + "',Province = '"  + Selection.getProvince() + "', PostalCode = '" + Selection.getPostalCode() + "' WHERE AddressID =" + Selection.getAddressId();
-				ResultSet resultCustomer = statement.executeQuery(UPDATE_CUSTUMER);
-				ResultSet resultAddress = statement.executeQuery(UPDATE_ADDRESS);
-				
-				lUserList.getItems().clear();
-				lUserList.setItems(FXCollections.observableArrayList(Customers));
+				if(Selection != null){
+					connection = DriverManager.getConnection(DATABASE_URL,USERNAME,PASSWORD);
+					
+					int Index = Customers.indexOf(Selection);
+					Selection = Customers.get(Index);			
+					
+					Selection.setFirstName(licFirstName.GetValue());
+					Selection.setLastName(licLastName.GetValue());
+					Selection.setEmail(licEmail.GetValue());
+					Selection.setPhone(licPhoneNumber.GetValue());
+					Selection.setStreet(licHomeAddress.GetValue());
+					Selection.setCity(licCity.GetValue());
+					Selection.setProvince(licProvince.GetValue());
+					Selection.setPostalCode(licPostalCode.GetValue());
+					if("".equals(Selection.getFirstName()) || !Selection.getFirstName().matches("[a-zA-Z]+$"))
+					{
+						showAlert("Please Enter Valid First Name", "First Name Can Not Be Empty");
+					}
+					else if("".equals(Selection.getLastName()) || !Selection.getLastName().matches("[a-zA-Z]+$"))
+					{
+						showAlert("Please Enter Valid Last Name", "Last Name Can Not Be Empty");
+					}
+					else if("".equals(Selection.getEmail()) || !Selection.getEmail().matches("^[\\w-\\.]+@([\\w-]+\\.)+[\\w-]{2,4}$"))
+					{
+						showAlert("Please Enter Valid Email", "Email Can Not Be Empty");
+					}
+					else{
+
+					Statement statement = connection.createStatement();
+					final String UPDATE_CUSTUMER = "UPDATE CUSTOMERS SET LastName = '" + Selection.getLastName() + "',FirstName = '" + Selection.getFirstName() + "',Email = '" + Selection.getEmail() + "',Phone = '" + Selection.getPhone() + "' WHERE Customerid =" + Selection.getId();
+					final String UPDATE_ADDRESS = "UPDATE ADDRESS SET Street = '" + Selection.getStreet() + "',City = '" + Selection.getCity() + "',Province = '"  + Selection.getProvince() + "', PostalCode = '" + Selection.getPostalCode() + "' WHERE AddressID =" + Selection.getAddressId();
+					statement.executeQuery(UPDATE_CUSTUMER);
+					statement.executeQuery(UPDATE_ADDRESS);
+					
+					populateCustomersArrayList(connection);
+					lUserList.getItems().clear();
+					lUserList.setItems(FXCollections.observableArrayList(Customers));
+					}
+				}
+				else{
+					showAlert("Please select a user to update", "No User Selected");
+				}
 			} catch (SQLException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
-			}				
-			
+			}	
+			finally{
+				close();
+			}
 			
 		}
 		
@@ -279,19 +360,27 @@ public class UserManagementApp extends Application {
 			try {
 				Customer Selection = lUserList.getSelectionModel().getSelectedItem();
 				
-				connection = DriverManager.getConnection("jdbc:oracle:thin:@oracle1.centennialcollege.ca:1521:SQLD", "comp228sy_F18_3", "password");
-				Statement statement = connection.createStatement();
-				ResultSet resultAddress = statement.executeQuery("DELETE FROM CUSTOMERS WHERE CUSTOMERID='" + Selection.getId() + "'");
+				if(Selection != null){
 				
-				Customers.remove(Selection);
-				CleanForm();
-				lUserList.setItems(FXCollections.observableArrayList(Customers));
+					connection = DriverManager.getConnection(DATABASE_URL,USERNAME,PASSWORD);
+					Statement statement = connection.createStatement();
+					statement.executeQuery("DELETE FROM CUSTOMERS WHERE CUSTOMERID='" + Selection.getId() + "'");
+					
+					populateCustomersArrayList(connection);
+					CleanForm();
+					lUserList.setItems(FXCollections.observableArrayList(Customers));
+				}
+				else{
+					showAlert("Please select a user to Delete", "No User Selected");
+				}
 			} catch (SQLException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
-			}			
+			}	
+			finally{
+				close();
+			}
 		}
-		
 		public void CleanForm()
 		{
 			licFirstName.getTextField().clear();
@@ -303,7 +392,6 @@ public class UserManagementApp extends Application {
 			licEmail.getTextField().clear();
 			licPhoneNumber.getTextField().clear();
 		}
-		
 	  @Override
 	  public void handle(ActionEvent e)
 	  {
@@ -324,9 +412,6 @@ public class UserManagementApp extends Application {
         try{
 
               Class.forName("oracle.jdbc.driver.OracleDriver");
-              connection = DriverManager.getConnection("jdbc:oracle:thin:@oracle1.centennialcollege.ca:1521:SQLD", "comp228sy_F18_3", "password");
-              System.out.println("connected");
-              connection.close();
         }
         catch (Exception e)
         {
@@ -335,5 +420,6 @@ public class UserManagementApp extends Application {
         
 		launch(args);
 	}
+	
 
 }
